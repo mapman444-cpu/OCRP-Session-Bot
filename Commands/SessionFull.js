@@ -13,8 +13,6 @@ const {
 
 const channelId = "1562601772185550899";
 
-
-
 module.exports = {
   roles: ["1556797424977182821"],
 
@@ -66,7 +64,7 @@ module.exports = {
             new ButtonBuilder()
               .setLabel("Quick Join")
               .setStyle(ButtonStyle.Link)
-              .setURL(https://erlc.gg/join?code=OSRPPP)
+              .setURL("https://erlc.gg/join?code=OSRPPP")
           )
         );
 
