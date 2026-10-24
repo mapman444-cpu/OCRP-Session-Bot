@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
+const http = require('node:http');
 const mongoose = require('mongoose');
 
 const {
@@ -14,6 +15,41 @@ const {
     GatewayIntentBits,
     MessageFlags,
 } = require('discord.js');
+
+const PORT = Number(process.env.PORT) || 3000;
+
+// ==========================================
+// RENDER HTTP SERVER
+// ==========================================
+
+const server = http.createServer((req, res) => {
+    if (req.url === '/' || req.url === '/health') {
+        res.writeHead(200, {
+            'Content-Type': 'text/plain',
+        });
+
+        res.end('Orlando State Roleplay bot is running.');
+        return;
+    }
+
+    res.writeHead(404, {
+        'Content-Type': 'text/plain',
+    });
+
+    res.end('Not found.');
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`HTTP server listening on port ${PORT}.`);
+});
+
+server.on('error', error => {
+    console.error('HTTP server error:', error);
+});
+
+// ==========================================
+// DISCORD CLIENT
+// ==========================================
 
 const client = new Client({
     intents: [
@@ -143,8 +179,6 @@ if (fs.existsSync(commandsPath)) {
 
 // ==========================================
 // LOAD BUTTON HANDLERS
-// Place Vote.js, ViewVoters.js and SessionRole.js
-// inside the Buttons folder.
 // ==========================================
 
 const buttonsPath = path.join(__dirname, 'Buttons');
@@ -162,7 +196,6 @@ if (fs.existsSync(buttonsPath)) {
             }
 
             client.buttonHandlers.set(button.customID, button);
-
             console.log(`Loaded button handler: ${button.customID}`);
         } catch (error) {
             console.error(`Failed to load Buttons/${file}:`, error);
@@ -179,11 +212,6 @@ if (fs.existsSync(buttonsPath)) {
 // ==========================================
 
 client.on('interactionCreate', async interaction => {
-
-    // --------------------------------------
-    // SLASH COMMANDS
-    // --------------------------------------
-
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
 
@@ -198,7 +226,7 @@ client.on('interactionCreate', async interaction => {
             );
 
             const reply = {
-                content: 'There was an error running this command.'
+                content: 'There was an error running this command.',
             };
 
             if (interaction.deferred || interaction.replied) {
@@ -214,19 +242,11 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // --------------------------------------
-    // BUTTONS
-    // --------------------------------------
-
     if (interaction.isButton()) {
         const customId = interaction.customId;
 
         let handler = client.buttonHandlers.get(customId);
         let args = [];
-
-        // Match IDs such as:
-        // vote:button_12345
-        // viewvote:button_12345
 
         if (!handler) {
             const separator = customId.lastIndexOf('_');
@@ -310,12 +330,12 @@ client.on('error', error => {
 
 async function startBot() {
     if (!process.env.MONGO_URI) {
-        console.error('Missing MONGO_URI in your .env file.');
+        console.error('Missing MONGO_URI in your environment variables.');
         process.exit(1);
     }
 
     if (!process.env.TOKEN) {
-        console.error('Missing TOKEN in your .env file.');
+        console.error('Missing TOKEN in your environment variables.');
         process.exit(1);
     }
 
