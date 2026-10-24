@@ -203,9 +203,9 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary);
 
             const joinButton = new ButtonBuilder()
-                .setLabel("Quick Join")
-                .setStyle(ButtonStyle.Link)
-                .setURL(https://erlc.gg/join?code=OSRPPP);
+    .setLabel("Quick Join")
+    .setStyle(ButtonStyle.Link)
+    .setURL("https://erlc.gg/join?code=OSRPPP");
 
             container.addActionRowComponents(
                 new ActionRowBuilder().addComponents(
