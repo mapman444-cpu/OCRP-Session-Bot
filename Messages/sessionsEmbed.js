@@ -31,6 +31,9 @@ module.exports = {
         const bannerUrl =
             "https://cdn.discordapp.com/attachments/1562258264882806814/1562604852763426987/336A9E81-9370-4B7C-8DDF-79658B2B20F9.png";
 
+        const robloxJoinUrl =
+            "roblox://placeId=2534724415&launchData=%7B%22psCode%22%3A%22OSRPPP%22%7D";
+
         if (!serverKey) {
             console.error("ER:LC API key is missing. Check config.js.");
             return;
@@ -71,6 +74,7 @@ module.exports = {
             const players = Array.isArray(data?.Players)
                 ? data.Players
                 : [];
+
             const queue = Array.isArray(data?.Queue)
                 ? data.Queue
                 : [];
@@ -138,13 +142,14 @@ module.exports = {
                 new TextDisplayBuilder().setContent(
                     "# Session Start Times\n\n" +
                     "> **Weekday Time:** <t:1792764000:t>\n" +
-                    "> **Weekend Time:** <t:1792738800:t>\n" +
-                    "# Server Information:\n\n" +
-                    "> **Server Name:** Orlando State Roleplay \n" +
-                    "> **Server Owner:** Ykaldjane2319 \n" +
+                    "> **Weekend Time:** <t:1792738800:t>\n\n" +
+                    "# Server Information\n\n" +
+                    "> **Server Name:** Orlando State Roleplay\n" +
+                    "> **Server Owner:** Ykaldjane2319\n" +
                     "> **Join Code:** OSRPPP\n\n" +
                     "> Do not attempt to join the server when it is shut down.\n" +
-                    "> Click the 🔔 to receive the session ping role!"
+                    "> Use the Join Server button below to try to connect.\n" +
+                    "> Click 🔔 to receive the session ping role!"
                 )
             );
 
@@ -200,17 +205,25 @@ module.exports = {
                 .setEmoji("🔔")
                 .setStyle(ButtonStyle.Secondary);
 
+            const joinButton = new ButtonBuilder()
+                .setLabel("Quick Join")
+                .setStyle(ButtonStyle.Link)
+                .setURL(robloxJoinUrl);
+
             container.addActionRowComponents(
                 new ActionRowBuilder().addComponents(
                     statusButton,
-                    notificationButton
+                    notificationButton,
+                    joinButton
                 )
             );
 
             return {
                 components: [container],
                 flags: MessageFlags.IsComponentsV2,
-                allowedMentions: { parse: [] }
+                allowedMentions: {
+                    parse: []
+                }
             };
         };
 
@@ -225,7 +238,6 @@ module.exports = {
         };
 
         try {
-            // Restore the existing panel from MongoDB, if one exists.
             const savedSession = await SessionsModel.findOne({
                 channelId: sessionChannelId
             });
@@ -236,10 +248,8 @@ module.exports = {
                     .catch(() => null);
             }
 
-            // Get current ER:LC server information.
             const initialData = await fetchServerData();
 
-            // Edit the saved panel or send a new one if it no longer exists.
             if (client.sessionPanelMessage) {
                 await client.sessionPanelMessage.edit(
                     buildPanel(initialData)
@@ -252,9 +262,10 @@ module.exports = {
 
             client.sessionPanelChannelId = sessionChannelId;
 
-            // Save the panel's message ID in MongoDB.
             await SessionsModel.findOneAndUpdate(
-                { channelId: sessionChannelId },
+                {
+                    channelId: sessionChannelId
+                },
                 {
                     channelId: sessionChannelId,
                     messageId: client.sessionPanelMessage.id
@@ -266,7 +277,6 @@ module.exports = {
                 }
             );
 
-            // Allow /ssu and /ssd to refresh the panel.
             client.refreshSessionPanel = async () => {
                 try {
                     await refreshPanel();

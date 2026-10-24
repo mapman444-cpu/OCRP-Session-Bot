@@ -8,6 +8,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
+client.config = require('./config.js');
 
 const {
     Client,

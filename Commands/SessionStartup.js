@@ -1,4 +1,3 @@
-
 const {
   SlashCommandBuilder,
   ContainerBuilder,
@@ -25,7 +24,7 @@ module.exports = {
     await interaction.deferReply({
       flags: MessageFlags.Ephemeral,
     });
-
+    
     try {
       const serverName = "Orlando State Roleplay";
       const serverOwner = "Ykaldjane2319";
@@ -33,6 +32,9 @@ module.exports = {
 
       const headerImage =
         "https://cdn.discordapp.com/attachments/1562258264882806814/1562604852763426987/336A9E81-9370-4B7C-8DDF-79658B2B20F9.png";
+
+      const robloxJoinUrl =
+        "roblox://placeId=2534724415&launchData=%7B%22psCode%22%3A%22OSRPPP%22%7D";
 
       if (!client.voteMap) {
         client.voteMap = new Map();
@@ -89,7 +91,7 @@ module.exports = {
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setLabel("Quick Join")
-              .setURL("https://discord.gg/osrp")
+              .setURL(robloxJoinUrl)
               .setStyle(ButtonStyle.Link)
           )
         );
@@ -143,10 +145,10 @@ module.exports = {
       }
 
       await interaction.editReply({
-        content: "Sucessfully hosted a session start-up! ",
+        content: "Successfully hosted a session start-up!",
       });
     } catch (error) {
-      console.error("Error executing /ssu:", error);
+      console.error("Error executing /session-start:", error);
 
       await interaction.editReply({
         content: "The session startup encountered an error. Check the bot console.",

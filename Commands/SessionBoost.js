@@ -12,6 +12,8 @@ const {
 } = require("discord.js");
 
 const channelId = "1562601772185550899";
+ const robloxJoinUrl =
+ "roblox://placeId=2534724415&launchData=%7B%22psCode%22%3A%22OSRPPP%22%7D";
 
 module.exports = {
   roles: ["1556797424977182821"],
@@ -55,7 +57,7 @@ module.exports = {
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setLabel("Quick Join")
-              .setURL("https://discord.gg/osrp")
+              .setURL(robloxJoinUrl)
               .setStyle(ButtonStyle.Link)
           )
         );
