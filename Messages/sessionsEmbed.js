@@ -31,9 +31,6 @@ module.exports = {
         const bannerUrl =
             "https://cdn.discordapp.com/attachments/1562258264882806814/1562604852763426987/336A9E81-9370-4B7C-8DDF-79658B2B20F9.png";
 
-        const robloxJoinUrl =
-            "roblox://placeId=2534724415&launchData=%7B%22psCode%22%3A%22OSRPPP%22%7D";
-
         if (!serverKey) {
             console.error("ER:LC API key is missing. Check config.js.");
             return;
@@ -208,7 +205,7 @@ module.exports = {
             const joinButton = new ButtonBuilder()
                 .setLabel("Quick Join")
                 .setStyle(ButtonStyle.Link)
-                .setURL(robloxJoinUrl);
+                .setURL(https://erlc.gg/join?code=OSRPPP);
 
             container.addActionRowComponents(
                 new ActionRowBuilder().addComponents(
