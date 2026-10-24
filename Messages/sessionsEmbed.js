@@ -23,7 +23,7 @@ module.exports = {
             await message.delete().catch(() => {});
         }
 
-        const sessionChannelId = "1562601772185550899";
+        const sessionChannelId = "1556685797703553144";
         const serverKey = client.config?.prcKey;
         const apiBaseUrl = "https://api.erlc.gg/v2";
         const refreshInterval = 30_000;
