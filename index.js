@@ -1,4 +1,3 @@
-
 const dns = require('node:dns');
 
 dns.setServers(['8.8.8.8', '1.1.1.1']);
@@ -8,7 +7,6 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const mongoose = require('mongoose');
-client.config = require('./config.js');
 
 const {
     Client,
