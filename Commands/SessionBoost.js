@@ -55,7 +55,7 @@ module.exports = {
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setLabel("Quick Join")
-              .setURL(https://erlc.gg/join?code=OSRPPP)
+              .setURL("https://erlc.gg/join?code=OSRPPP")
               .setStyle(ButtonStyle.Link)
           )
         );
