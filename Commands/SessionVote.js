@@ -12,7 +12,7 @@ const {
 
 const crypto = require("crypto");
 
-const channelId = "1562601772185550899";
+const channelId = "1556685797703553144";
 
 module.exports = {
   roles: ["1556797424977182821"],
