@@ -1,3 +1,330 @@
+
+const {
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    MediaGalleryBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags
+} = require('discord.js');
+
+const axios = require('axios');
+const SessionsModel = require('../Models/SessionsModel');
+
+const SESSION_CHANNEL_ID = '1556685797703553144';
+const NOTIFICATION_ROLE_ID = '1556729983546957875';
+
+const API_BASE_URL = 'https://api.erlc.gg/v2';
+const REFRESH_INTERVAL = 30_000;
+
+const BANNER_URL =
+    'https://cdn.discordapp.com/attachments/1562258264882806814/1562604852763426987/336A9E81-9370-4B7C-8DDF-79658B2B20F9.png';
+
+const QUICK_JOIN_URL = 'https://erlc.gg/join?code=OSRPPP';
+
+const STAFF_PERMISSIONS = [
+    'mod',
+    'moderator',
+    'server moderator',
+    'admin',
+    'administrator',
+    'server administrator',
+    'co-owner',
+    'coowner',
+    'owner',
+    'server owner'
+];
+
+let initializationPromise = null;
+let refreshInterval = null;
+let currentClient = null;
+
+function getServerKey(client) {
+    return (
+        client.config?.prcKey ||
+        process.env.PRC_KEY ||
+        ''
+    ).trim();
+}
+
+function isStaff(player) {
+    const permission = String(player?.Permission || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+
+    return STAFF_PERMISSIONS.includes(permission);
+}
+
+async function fetchServerData(client) {
+    const serverKey = getServerKey(client);
+
+    if (!serverKey) {
+        throw new Error(
+            'ER:LC API key is missing. Check PRC_KEY in your environment.'
+        );
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/server`, {
+        headers: {
+            'Server-Key': serverKey
+        },
+        params: {
+            Players: true,
+            Staff: true,
+            Queue: true
+        },
+        timeout: 15_000
+    });
+
+    const data = response.data || {};
+
+    const players = Array.isArray(data.Players)
+        ? data.Players
+        : [];
+
+    const staffCount = players.filter(isStaff).length;
+
+    const queue = Array.isArray(data.Queue)
+        ? data.Queue
+        : [];
+
+    console.log(
+        `[ERLC DEBUG] Players: ${players.length}; staff counted: ${staffCount}`
+    );
+
+    return {
+        players,
+        playerCount: players.length,
+        staffCount,
+        queueCount: queue.length
+    };
+}
+
+function buildPanel(client, serverData) {
+    const status = client.sessionStatus || 'offline';
+    const isOnline = status === 'online';
+
+    const sessionStartedAt = client.sessionStartedAt
+        ? Math.floor(client.sessionStartedAt / 1000)
+        : null;
+
+    const nextUpdate = Math.floor(
+        (Date.now() + REFRESH_INTERVAL) / 1000
+    );
+
+    const container = new ContainerBuilder();
+
+    container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(item =>
+            item.setURL(BANNER_URL)
+        )
+    );
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder()
+    );
+
+    container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+            [
+                '# Orlando State Roleplay',
+                'Welcome to the official session panel.',
+                '',
+                `**Session Status:** ${isOnline ? '🟢 Active' : '🔴 Inactive'}`,
+                `**Session Started:** ${sessionStartedAt ? `<t:${sessionStartedAt}:R>` : 'No active session'}`,
+                '',
+                '## Live Server Statistics',
+                `**Players:** ${serverData.playerCount}`,
+                `**Staff On Duty:** ${serverData.staffCount}`,
+                `**Queue:** ${serverData.queueCount}`,
+                '',
+                `**Next Update:** <t:${nextUpdate}:R>`,
+                '',
+                'Use the buttons below to view the server status, receive session notifications, or join the server.'
+            ].join('\n')
+        )
+    );
+
+    container.addSeparatorComponents(
+        new SeparatorBuilder()
+    );
+
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('sessionsRole:button')
+                .setLabel('Session Notifications')
+                .setStyle(ButtonStyle.Primary),
+
+            new ButtonBuilder()
+                .setLabel('Quick Join')
+                .setStyle(ButtonStyle.Link)
+                .setURL(QUICK_JOIN_URL)
+        )
+    );
+
+    return container;
+}
+
+async function refreshPanel(client) {
+    if (!client.sessionPanelMessage) {
+        return initialize(client);
+    }
+
+    const serverData = await fetchServerData(client);
+    const container = buildPanel(client, serverData);
+
+    await client.sessionPanelMessage.edit({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
+    });
+
+    console.log('Session panel refreshed successfully.');
+
+    return serverData;
+}
+
+async function initialize(client) {
+    if (initializationPromise) {
+        return initializationPromise;
+    }
+
+    initializationPromise = (async () => {
+        currentClient = client;
+
+        const channel = await client.channels.fetch(
+            SESSION_CHANNEL_ID
+        );
+
+        if (!channel || !channel.isTextBased()) {
+            throw new Error(
+                `Session panel channel ${SESSION_CHANNEL_ID} was not found or is not a text channel.`
+            );
+        }
+
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+
+        let savedSession = await SessionsModel.findOne({
+            channelId: SESSION_CHANNEL_ID
+        });
+
+        if (!client.sessionStatus) {
+            client.sessionStatus = 'offline';
+        }
+
+        let existingMessage = null;
+
+        if (savedSession?.messageId) {
+            try {
+                existingMessage = await channel.messages.fetch(
+                    savedSession.messageId
+                );
+            } catch (error) {
+                console.log(
+                    'The previously saved session panel was not found. A new one will be created.'
+                );
+            }
+        }
+
+        const serverData = await fetchServerData(client);
+        const container = buildPanel(client, serverData);
+
+        if (existingMessage) {
+            await existingMessage.edit({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2
+            });
+
+            client.sessionPanelMessage = existingMessage;
+
+            console.log(
+                `Session panel restored: ${existingMessage.id}`
+            );
+        } else {
+            const message = await channel.send({
+                components: [container],
+                flags: MessageFlags.IsComponentsV2
+            });
+
+            client.sessionPanelMessage = message;
+
+            if (!savedSession) {
+                savedSession = new SessionsModel({
+                    channelId: SESSION_CHANNEL_ID,
+                    messageId: message.id
+                });
+            } else {
+                savedSession.messageId = message.id;
+            }
+
+            await savedSession.save();
+
+            console.log(
+                `Session panel created and saved: ${message.id}`
+            );
+        }
+
+        client.refreshSessionPanel = async () => {
+            try {
+                return await refreshPanel(client);
+            } catch (error) {
+                console.error(
+                    'Failed to refresh session panel:',
+                    error.response?.data || error.message || error
+                );
+
+                throw error;
+            }
+        };
+
+        refreshInterval = setInterval(async () => {
+            try {
+                await refreshPanel(client);
+            } catch (error) {
+                console.error(
+                    'Automatic session panel refresh failed:',
+                    error.response?.data || error.message || error
+                );
+            }
+        }, REFRESH_INTERVAL);
+
+        console.log(
+            'Session panel auto-refresh started (every 30 seconds).'
+        );
+    })();
+
+    try {
+        await initializationPromise;
+    } finally {
+        initializationPromise = null;
+    }
+}
+
+module.exports = {
+    name: 'embed',
+    description: 'Send and update the session status panel.',
+
+    initialize,
+
+    async run(client, message) {
+        try {
+            await message.delete().catch(() => {});
+
+            await initialize(client);
+        } catch (error) {
+            console.error(
+                'Failed to initialize session panel:',
+                error.response?.data || error.message || error
+            );
+        }
+    }
+};
 const {
     ContainerBuilder,
     TextDisplayBuilder,
