@@ -60,6 +60,12 @@ async function fetchServerData(client) {
 
     const data = response.data;
 
+    // TEMPORARY DEBUG: inspect the player fields in Render logs.
+    console.log(
+        "[ERLC DEBUG] Player data:",
+        JSON.stringify(data?.Players, null, 2)
+    );
+
     const players = Array.isArray(data?.Players)
         ? data.Players
         : [];
@@ -79,6 +85,10 @@ async function fetchServerData(client) {
 
         return STAFF_PERMISSIONS.has(permission);
     }).length;
+
+    console.log(
+        `[ERLC DEBUG] Players: ${players.length}; staff counted: ${staffCount}`
+    );
 
     return {
         players,
@@ -236,7 +246,6 @@ async function initialize(client) {
             );
         }
 
-        // Stop any previous timer before starting another.
         if (client.sessionPanelInterval) {
             clearInterval(client.sessionPanelInterval);
             client.sessionPanelInterval = null;
@@ -246,7 +255,6 @@ async function initialize(client) {
             client.sessionStatus = "offline";
         }
 
-        // Restore the existing panel using its saved MongoDB message ID.
         const savedSession = await SessionsModel.findOne({
             channelId: SESSION_CHANNEL_ID,
         }).lean();
@@ -265,15 +273,15 @@ async function initialize(client) {
                 });
         }
 
-        // Fetch fresh data before editing or creating a panel.
         const initialData = await fetchServerData(client);
-        const panelPayload = buildPanel(client, initialData);
 
         if (panelMessage) {
-            await panelMessage.edit(panelPayload);
+            await panelMessage.edit(buildPanel(client, initialData));
             console.log("Existing session panel restored and updated.");
         } else {
-            panelMessage = await channel.send(panelPayload);
+            panelMessage = await channel.send(
+                buildPanel(client, initialData)
+            );
 
             await SessionsModel.findOneAndUpdate(
                 { channelId: SESSION_CHANNEL_ID },
@@ -298,7 +306,6 @@ async function initialize(client) {
         client.sessionPanelMessage = panelMessage;
         client.sessionPanelChannelId = SESSION_CHANNEL_ID;
 
-        // One shared refresh function for the timer and shutdown command.
         client.refreshSessionPanel = async () => {
             if (!client.sessionPanelMessage) {
                 throw new Error(
@@ -353,7 +360,6 @@ async function initialize(client) {
 module.exports = {
     name: "embed",
     description: "Send and update the session status panel.",
-
     initialize,
 
     run: async (client, message) => {
