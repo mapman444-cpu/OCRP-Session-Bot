@@ -63,6 +63,7 @@ const client = new Client({
 client.commands = new Collection();
 client.prefixCommands = new Collection();
 client.buttonHandlers = new Collection();
+
 client.config = require('./config.js');
 
 client.voteMap = new Map();
@@ -93,6 +94,8 @@ if (fs.existsSync(messagesPath)) {
             console.error(`Failed to load Messages/${file}:`, error);
         }
     }
+} else {
+    console.warn('Messages folder not found.');
 }
 
 // ==========================================
@@ -124,6 +127,8 @@ if (fs.existsSync(eventsPath)) {
             console.error(`Failed to load Event/${file}:`, error);
         }
     }
+} else {
+    console.warn('Event folder not found.');
 }
 
 // ==========================================
@@ -155,26 +160,50 @@ client.on('messageCreate', async message => {
 
 // ==========================================
 // LOAD SLASH COMMANDS
+// Supports both commands/ and Commands/
 // ==========================================
 
-const commandsPath = path.join(__dirname, 'commands');
+const commandDirectories = ['commands', 'Commands'];
+const loadedCommandFiles = new Set();
 
-if (fs.existsSync(commandsPath)) {
+for (const directory of commandDirectories) {
+    const commandsPath = path.join(__dirname, directory);
+
+    if (!fs.existsSync(commandsPath)) continue;
+
     for (const file of fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'))) {
+        const filePath = path.join(commandsPath, file);
+
+        if (loadedCommandFiles.has(filePath)) continue;
+        loadedCommandFiles.add(filePath);
+
         try {
-            const command = require(path.join(commandsPath, file));
+            const command = require(filePath);
 
             if (!command.data || typeof command.execute !== 'function') {
-                console.warn(`Skipped commands/${file}: missing data or execute.`);
+                console.warn(`Skipped ${directory}/${file}: missing data or execute.`);
                 continue;
             }
 
-            client.commands.set(command.data.name, command);
-            console.log(`Loaded slash command: /${command.data.name}`);
+            const commandName = command.data.name;
+
+            if (client.commands.has(commandName)) {
+                console.warn(
+                    `Duplicate slash command /${commandName} found in ${directory}/${file}. Skipping duplicate.`
+                );
+                continue;
+            }
+
+            client.commands.set(commandName, command);
+            console.log(`Loaded slash command: /${commandName}`);
         } catch (error) {
-            console.error(`Failed to load commands/${file}:`, error);
+            console.error(`Failed to load ${directory}/${file}:`, error);
         }
     }
+}
+
+if (client.commands.size === 0) {
+    console.warn('No slash commands were loaded. Check your command folders.');
 }
 
 // ==========================================
@@ -213,29 +242,58 @@ if (fs.existsSync(buttonsPath)) {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
+        console.log(
+            `[INTERACTION] Received /${interaction.commandName}`
+        );
+
         const command = client.commands.get(interaction.commandName);
 
-        if (!command) return;
+        if (!command) {
+            console.error(
+                `[INTERACTION] Command not loaded: /${interaction.commandName}`
+            );
+
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    content: 'This command is not loaded by the bot.',
+                    flags: MessageFlags.Ephemeral,
+                }).catch(error => {
+                    console.error('Failed to report missing command:', error);
+                });
+            }
+
+            return;
+        }
 
         try {
+            console.log(
+                `[INTERACTION] Executing /${interaction.commandName}`
+            );
+
             await command.execute(interaction, client);
+
+            console.log(
+                `[INTERACTION] Finished /${interaction.commandName}`
+            );
         } catch (error) {
             console.error(
-                `Error executing /${interaction.commandName}:`,
+                `[INTERACTION] Failed /${interaction.commandName}:`,
                 error
             );
 
             const reply = {
-                content: 'There was an error running this command.',
+                content: 'There was an error running this command. Check the bot logs.',
+                flags: MessageFlags.Ephemeral,
             };
 
             if (interaction.deferred || interaction.replied) {
-                await interaction.followUp(reply).catch(() => {});
+                await interaction.followUp(reply).catch(followUpError => {
+                    console.error('Failed to send interaction error:', followUpError);
+                });
             } else {
-                await interaction.reply({
-                    ...reply,
-                    flags: MessageFlags.Ephemeral,
-                }).catch(() => {});
+                await interaction.reply(reply).catch(replyError => {
+                    console.error('Failed to acknowledge interaction:', replyError);
+                });
             }
         }
 
@@ -264,7 +322,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (!handler) {
-            console.warn(`No button handler found for: ${customId}`);
+            console.warn(`[BUTTON] No handler found for: ${customId}`);
 
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
@@ -279,10 +337,7 @@ client.on('interactionCreate', async interaction => {
         try {
             await handler.execute(interaction, client, args);
         } catch (error) {
-            console.error(
-                `Error handling button ${customId}:`,
-                error
-            );
+            console.error(`[BUTTON] Error handling ${customId}:`, error);
 
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
@@ -348,7 +403,7 @@ async function startBot() {
 
         await client.login(process.env.TOKEN);
     } catch (error) {
-        console.error('Failed to start the bot:', error.message);
+        console.error('Failed to start the bot:', error);
         process.exit(1);
     }
 }
