@@ -37,7 +37,7 @@ module.exports = {
             const notificationRoleId = "1556729983546957875";
 
             const headerImage =
-                "https://cdn.discordapp.com/attachments/1562258264882806814/1562604852763426987/336A9E81-9370-4B7C-8DDF-79658B2B20F9.png";
+                "https://cdn.discordapp.com/attachments/1558959335034458293/1565533888103710860/8887C557-6D47-4F63-A7BF-EEEBCB9D6D65.png?ex=6afc52cd&is=6afb014d&hm=3b1aeccd1286fde6c06733d9f47cef8fb22b142806894851290494b4cdf29230";
 
             // Verify the channel.
             const channel = await interaction.guild.channels
