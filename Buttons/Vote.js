@@ -188,7 +188,7 @@ module.exports = {
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setLabel("Quick Join")
-            .setURL("https://discord.gg/osrp")
+            .setURL("https://erlc.gg/join?code=OSRPPP")
             .setStyle(ButtonStyle.Link)
         )
       );
